@@ -11,7 +11,7 @@ export class OverrideableBuilder<T extends Record<string, undefined | ((...args:
         this.proxies = [];
     }
 
-    override(overrideFunc: ((originalImplementation: T, builder: OverrideableBuilder<T>) => T)): OverrideableBuilder<T> {
+    override(overrideFunc: (originalImplementation: T, builder: OverrideableBuilder<T>) => T): OverrideableBuilder<T> {
         const proxy = getProxyObject(this.layers[0]) as T;
         const layer = overrideFunc(proxy, this) as NullablePartial<T>;
         for (const key of Object.keys(this.layers[0]) as (keyof T)[]) {
@@ -36,12 +36,14 @@ export class OverrideableBuilder<T extends Record<string, undefined | ((...args:
         this.result = {} as T;
         for (const layer of this.layers) {
             for (const key of Object.keys(layer) as (keyof T)[]) {
-                const func = layer[key];
-                if (func !== undefined) {
-                    if (func === null) {
+                const override = layer[key];
+                if (override !== undefined) {
+                    if (override === null) {
                         this.result[key] = undefined as T[keyof T];
+                    } else if (typeof override === "function") {
+                        this.result[key] = override.bind(this.result) as T[keyof T];
                     } else {
-                        this.result[key] = func.bind(this.result) as T[keyof T];
+                        this.result[key] = override as T[keyof T];
                     }
                 }
             }
