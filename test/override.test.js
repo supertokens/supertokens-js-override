@@ -312,6 +312,53 @@ describe("OverrideableBuilder", () => {
         expect(result).to.equal(2);
     });
 
+    it("should work with class constructor providing override", () => {
+        class OverridingClass {
+            constructor(oi){
+                this.oi = oi
+            }
+            
+            anotherFunc = function () {
+                return 100 + this.oi.anotherFunc();
+            }
+
+            testFunc = function () {
+                return this.someFunc() * 5;
+            }
+        }
+
+        const oi = getTestOI();
+        const oiSpy = sinon.spy(oi);
+
+        let overrideSpy;
+
+        const builder = new OverrideableBuilder(oi);
+        builder.override((orig) => {
+            const override = new OverridingClass(orig);
+            overrideSpy = sinon.spy(override)
+            return {
+                ...orig,
+                ...override,
+            };
+        });
+        const withOverrides = builder.build();
+
+        const result = withOverrides.testFunc();
+
+        expect(overrideSpy.testFunc.callCount).to.equal(1);
+        expect(overrideSpy.testFunc.alwaysCalledOn(withOverrides));
+        expect(oiSpy.testFunc.callCount).to.equal(0);
+
+        expect(oiSpy.someFunc.callCount).to.equal(1);
+        expect(oiSpy.someFunc.alwaysCalledOn(withOverrides)).to.be.true;
+
+        expect(oiSpy.anotherFunc.callCount).to.equal(1);
+        expect(overrideSpy.anotherFunc.callCount).to.equal(1);
+        expect(overrideSpy.anotherFunc.alwaysCalledOn(withOverrides));
+
+        expect(result).to.equal(555);
+    });
+
     it("override test from supertokens", async function () {
         // see https://github.com/supertokens/supertokens-node/issues/199 (issue 2 tests)
         let m = 0;
